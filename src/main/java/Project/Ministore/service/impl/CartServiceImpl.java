@@ -25,79 +25,96 @@ public class CartServiceImpl implements CartService {
     private ProductRepository productRepository;
     @Override
     public CartEntity saveCart(int productId, int accountId) {
-        AccountEntity user = accountRepository.findById(accountId).get();
-        ProductEntity product = productRepository.findById(productId).get();
-        CartEntity cartStatus = cartRepository.findByProductEntity_IdAndAccountEntity_Id(productId,accountId);
-        CartEntity cart = null;
-        if (ObjectUtils.isEmpty(cartStatus)){
+        AccountEntity user = accountRepository.findById(accountId).orElseThrow(() -> new RuntimeException("User not found"));
+        ProductEntity product = productRepository.findById(productId).orElseThrow(() -> new RuntimeException("Product not found"));
+        CartEntity cartStatus = cartRepository.findByProductEntity_IdAndAccountEntity_Id(productId, accountId);
+
+        CartEntity cart;
+        if (ObjectUtils.isEmpty(cartStatus)) {
+            // Tạo mới giỏ hàng
             cart = new CartEntity();
             cart.setProductEntity(product);
             cart.setAccountEntity(user);
-            cart.setQuantity(cart.getQuantity()+1);
-            cart.setTotal_price(1 * product.getDiscount_price());
-        }else {
+            cart.setQuantity(1);  // Thiết lập số lượng mặc định là 1
+            // Kiểm tra discount_price có null không trước khi tính toán
+            Long discountPrice = product.getDiscount_price() != null ? product.getDiscount_price() : product.getPrice();
+            cart.setTotal_price(1 * discountPrice);  // Tính giá cho 1 sản phẩm
+        } else {
+            // Cập nhật giỏ hàng hiện có
             cart = cartStatus;
-            cart.setQuantity(cart.getQuantity() + 1);
-            cart.setTotal_price(cart.getQuantity() * cart.getProductEntity().getDiscount_price());
+            cart.setQuantity(cart.getQuantity() + 1);  // Tăng số lượng lên 1
+            // Kiểm tra discount_price có null không trước khi tính toán
+            Long discountPrice = cart.getProductEntity().getDiscount_price() != null ? cart.getProductEntity().getDiscount_price() : cart.getProductEntity().getPrice();
+            cart.setTotal_price(cart.getQuantity() * discountPrice);  // Cập nhật tổng giá
         }
-        CartEntity saveCart = cartRepository.save(cart);
-        return saveCart;
+
+        return cartRepository.save(cart);
     }
 
     @Override
     public List<CartEntity> getCartByUser(int accountId) {
         List<CartEntity> carts = cartRepository.findByAccountEntity_Id(accountId);
         Long total_orderPrice = 0L;
-        List<CartEntity> updateCarts = new ArrayList<>();
-        for (CartEntity c : carts){
-           Long total_price = (c.getProductEntity().getPrice() * c.getQuantity());
+
+        for (CartEntity c : carts) {
+            // Sử dụng giá gốc nếu giá giảm giá là null
+            Long price = c.getProductEntity().getDiscount_price() != null ? c.getProductEntity().getDiscount_price() : c.getProductEntity().getPrice();
+            Long total_price = price * c.getQuantity();  // Tính tổng giá cho mỗi sản phẩm
             c.setTotal_price(total_price);
-            total_orderPrice = total_orderPrice + total_price;
+            total_orderPrice += total_price;  // Cộng dồn tổng giá đơn hàng
             c.setTotal_orderPrice(total_orderPrice);
-            updateCarts.add(c);
         }
         return carts;
     }
 
     @Override
     public int getCountCart(int accountId) {
-        int countByUserId = cartRepository.countByAccountEntity_Id(accountId);
-
-        return countByUserId;
+        return cartRepository.countByAccountEntity_Id(accountId);
     }
 
     @Override
     public void updateQuantity(String sy, int cid) {
-        CartEntity cart = cartRepository.findById(cid).get();
+        CartEntity cart = cartRepository.findById(cid).orElseThrow(() -> new RuntimeException("Cart not found"));
+
         int updateQuantity;
-        if (sy.equalsIgnoreCase("de")){
-            updateQuantity = cart.getQuantity() -1;
-            if (updateQuantity <= 0){
+        if (sy.equalsIgnoreCase("de")) {
+            updateQuantity = cart.getQuantity() - 1;
+            if (updateQuantity <= 0) {
                 cartRepository.delete(cart);
-            }else {
+            } else {
                 cart.setQuantity(updateQuantity);
+                // Cập nhật tổng giá khi số lượng thay đổi
+                Long discountPrice = cart.getProductEntity().getDiscount_price() != null ? cart.getProductEntity().getDiscount_price() : cart.getProductEntity().getPrice();
+                cart.setTotal_price(updateQuantity * discountPrice);
                 cartRepository.save(cart);
             }
         } else {
-            updateQuantity = cart.getQuantity() +1;
+            updateQuantity = cart.getQuantity() + 1;
             cart.setQuantity(updateQuantity);
+            // Cập nhật tổng giá khi số lượng thay đổi
+            Long discountPrice = cart.getProductEntity().getDiscount_price() != null ? cart.getProductEntity().getDiscount_price() : cart.getProductEntity().getPrice();
+            cart.setTotal_price(updateQuantity * discountPrice);
             cartRepository.save(cart);
         }
     }
 
     @Override
     public Long getTotalCart(int accountId) {
-        List<CartEntity> cartItems = cartRepository.findByAccountEntity_Id(accountId);
-        Long totalPrice = 0L;
         List<CartEntity> carts = getCartByUser(accountId);
-        if (carts.size() > 0) {
-            Long orderPrice = carts.get(carts.size() - 1).getTotal_orderPrice();
-            totalPrice = carts.get(carts.size() - 1).getTotal_orderPrice() + 25000;
-//            DecimalFormat df = new DecimalFormat("#,###");
-//            String formattedOrderPrice = df.format(orderPrice) + " ₫";
-//            String formattedTotalOrderPrice = df.format(totalOrderPrice) + " ₫";
+        Long totalPrice = 0L;
+
+        if (!carts.isEmpty()) {
+            totalPrice = carts.get(carts.size() - 1).getTotal_orderPrice() + 25000;  // Cộng phí vận chuyển (giả sử là 25000)
         }
 
         return totalPrice;
+    }
+
+    @Override
+    public void clearCart(int accountId) {
+        List<CartEntity> carts = cartRepository.findByAccountEntity_Id(accountId);
+        for (CartEntity cart : carts) {
+            cartRepository.delete(cart);
+        }
     }
 }

@@ -54,7 +54,7 @@
                             <tr th:each="o:${orders}">
                                 <th scope="row">[[${o.orderId}]]</th>
                                 <td>
-                                    Name : [[${o.ordersAddressEntity.first_name+' '+o.ordersAddressEntity.last_name}]]<br>
+                                    Name : [[${o.ordersAddressEntity.name}]]<br>
                                     Email : [[${o.ordersAddressEntity.email}]] <br>
                                     Phone: [[${o.ordersAddressEntity.phone}]] <br>
                                     Address : [[${o.ordersAddressEntity.address}]] <br>

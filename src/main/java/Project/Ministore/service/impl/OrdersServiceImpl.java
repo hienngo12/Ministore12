@@ -9,6 +9,9 @@ import Project.Ministore.repository.OrdersRepository;
 import Project.Ministore.service.OrdersService;
 import Project.Ministore.util.OrderStatus;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
@@ -36,8 +39,7 @@ private OrdersRepository ordersRepository;
         orders.setStatus(OrderStatus.IN_PROGRESS.getName());
         orders.setPayment_type(ordersAddressEntityDto.getPayment_type());
         OrdersAddressEntity address = new OrdersAddressEntity();
-        address.setFirst_name(ordersAddressEntityDto.getFirst_name());
-        address.setLast_name(ordersAddressEntityDto.getLast_name());
+        address.setName(ordersAddressEntityDto.getName());
         address.setEmail(ordersAddressEntityDto.getEmail());
         address.setPhone(ordersAddressEntityDto.getPhone());
         address.setAddress(ordersAddressEntityDto.getAddress());
@@ -70,4 +72,5 @@ private OrdersRepository ordersRepository;
     public List<OrdersEntity> getAllOrders() {
         return ordersRepository.findAll();
     }
+
 }
